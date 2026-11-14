@@ -1,0 +1,14 @@
+name: Node DNS PHP checks
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - '.github/workflows/node-dns-check.yml'
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint changed PHP
+        run: |
+          find app -name '*.php' -print0 | xargs -0 -n1 php -l
