@@ -1,0 +1,88 @@
+name: Dual upstream monitor
+
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dual-upstream-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out maintained branch
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Compare upstream histories (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add v3board https://github.com/codeman857/v3board.git
+          git remote add xiaov2board https://github.com/wyx2685/v2board.git
+          git -c protocol.version=2 fetch --no-tags v3board master
+          git -c protocol.version=2 fetch --no-tags xiaov2board master
+          {
+            echo '<!-- dual-upstream-monitor -->'
+            echo '# 双上游更新检查'
+            echo
+            echo "检查时间（UTC）：$(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo
+            for remote in v3board xiaov2board; do
+              case "$remote" in
+                v3board) repo='codeman857/v3board' ;;
+                xiaov2board) repo='wyx2685/v2board' ;;
+              esac
+              echo "## $repo"
+              ahead=$(git rev-list --count "HEAD..$remote/master")
+              local_only=$(git rev-list --count "$remote/master..HEAD")
+              echo "- 上游尚未进入本仓库历史的提交：$ahead"
+              echo "- 本仓库相对上游的独有提交：$local_only"
+              echo "- 上游 HEAD：$(git rev-parse "$remote/master")"
+              echo
+              if [ "$ahead" -gt 0 ]; then
+                echo '最近 30 个待评估提交：'
+                echo '~~~text'
+                git log --no-merges --format='%h %s' "HEAD..$remote/master" -30 | cut -c1-220
+                echo '~~~'
+              else
+                echo '暂无新增提交。'
+              fi
+              echo
+            done
+            echo '注意：这里按 Git 提交祖先关系统计，可能包含已通过 cherry-pick 引入的等效补丁；必须人工复核，不能直接视为待合并数量。'
+            echo
+            echo '本工作流不合并、不推送代码、不执行部署。'
+          } > upstream-report.md
+          cat upstream-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create or update tracking issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('upstream-report.md', 'utf8');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = '[自动监控] V3Board / XiaoV2Board 上游更新';
+            const {data: issues} = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', per_page: 100
+            });
+            const existing = issues.find(i => !i.pull_request &&
+              i.title === title && i.body?.includes('<!-- dual-upstream-monitor -->'));
+            if (existing) {
+              await github.rest.issues.update({owner, repo, issue_number: existing.number, body});
+            } else {
+              await github.rest.issues.create({owner, repo, title, body});
+            }
