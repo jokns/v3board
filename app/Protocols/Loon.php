@@ -42,6 +42,20 @@ class Loon
                 $uri .= self::buildAnytls($user['uuid'], $item);
             }
         }
+        $dns = config('v2board.proxy_node_dns_servers', []);
+        if (is_array($dns) && $dns && trim($uri) !== '') {
+            $groups = ['dns-server' => [], 'doh-server' => [], 'doq-server' => [], 'doh3-server' => []];
+            foreach ($dns as $server) {
+                if (!is_string($server)) continue;
+                if (strpos($server, 'https://') === 0) $groups['doh-server'][] = $server;
+                elseif (strpos($server, 'quic://') === 0) $groups['doq-server'][] = $server;
+                elseif (strpos($server, 'h3://') === 0) $groups['doh3-server'][] = $server;
+                elseif (filter_var($server, FILTER_VALIDATE_IP)) $groups['dns-server'][] = $server;
+            }
+            $lines = [];
+            foreach ($groups as $key => $values) if ($values) $lines[] = $key . ' = ' . implode(',', $values);
+            if ($lines) $uri = "[DNS]\\n" . implode("\\n", $lines) . "\\n[Proxy]\\n" . $uri;
+        }
         return $uri;
     }
 
