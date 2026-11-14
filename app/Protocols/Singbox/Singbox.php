@@ -31,8 +31,6 @@ class Singbox
             $entry = null;
             if (filter_var($address, FILTER_VALIDATE_IP)) {
                 $entry = ['type' => 'udp', 'tag' => 'v3board-node-resolver', 'server' => $address];
-            } elseif (strpos($address, 'https://') === 0) {
-                $entry = ['type' => 'https', 'tag' => 'v3board-node-resolver', 'server' => $address];
             }
             if ($entry && is_array($this->config)) {
                 if (!isset($this->config['dns']['servers']) || !is_array($this->config['dns']['servers'])) $this->config['dns']['servers'] = [];
