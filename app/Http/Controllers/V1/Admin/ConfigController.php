@@ -210,6 +210,33 @@ class ConfigController extends Controller
         ]);
     }
 
+    public function fetchNodeIpv4Settings()
+    {
+        return response(['data' => config('v2board.subscribe_node_ipv4', [])]);
+    }
+
+    public function saveNodeIpv4Settings(Request $request)
+    {
+        $data = $request->validate([
+            'type' => 'required|in:shadowsocks,vmess,vless,trojan,tuic,hysteria,anytls,v2node',
+            'id' => 'required|integer|min:1',
+            'enabled' => 'required|boolean',
+        ]);
+        $model = 'App\\Models\\Server' . ($data['type'] === 'anytls' ? 'Anytls' : ucfirst($data['type']));
+        if (!class_exists($model) || !$model::find($data['id'])) abort(404, '节点不存在');
+        $config = config('v2board');
+        $settings = $config['subscribe_node_ipv4'] ?? [];
+        if (!is_array($settings)) $settings = [];
+        $key = $data['type'] . ':' . $data['id'];
+        if ($data['enabled']) $settings[$key] = true;
+        else unset($settings[$key]);
+        $config['subscribe_node_ipv4'] = $settings;
+        if (!File::put(base_path('config/v2board.php'), "<?php\\n return " . var_export($config, true) . ";")) abort(500, '保存失败');
+        if (function_exists('opcache_reset')) opcache_reset();
+        Artisan::call('config:cache');
+        return response(['data' => true]);
+    }
+
     public function fetchDomainRewriteRules()
     {
         return response([
