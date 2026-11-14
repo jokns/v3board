@@ -123,6 +123,7 @@ class ConfigController extends Controller
                 'subscribe_encrypt_iv' => config('v2board.subscribe_encrypt_iv'),
                 'subscribe_encrypt_ua' => config('v2board.subscribe_encrypt_ua'),
                 'subscribe_encrypt_plan_ids' => config('v2board.subscribe_encrypt_plan_ids'),
+                'proxy_node_dns_servers' => config('v2board.proxy_node_dns_servers', []),
             ],
             'frontend' => [
                 'frontend_theme' => config('v2board.frontend_theme', 'v2board'),
