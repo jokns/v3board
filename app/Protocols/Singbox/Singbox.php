@@ -23,23 +23,45 @@ class Singbox
     {
         $appName = config('v2board.app_name', 'V2Board');
         $this->config = $this->loadConfig();
-        // sing-box 1.12+: outbound hostname resolver. The first configured server
-        // is used as primary; other entries are not falsely advertised as fallbacks.
+        $proxies = $this->buildProxies();
+        // Apply node hostname DNS to proxy outbounds only, never global route DNS.
         $dns = config('v2board.proxy_node_dns_servers', []);
-        if (is_array($dns) && $dns) {
-            $address = (string)reset($dns);
-            $entry = null;
-            if (filter_var($address, FILTER_VALIDATE_IP)) {
-                $entry = ['type' => 'udp', 'tag' => 'v3board-node-resolver', 'server' => $address];
-            }
-            if ($entry && is_array($this->config)) {
-                if (!isset($this->config['dns']['servers']) || !is_array($this->config['dns']['servers'])) $this->config['dns']['servers'] = [];
+        if (is_array($dns) && is_array($this->config)) {
+            $resolverTags = [];
+            $existingTags = array_column($this->config['dns']['servers'] ?? [], 'tag');
+            foreach ($dns as $address) {
+                if (!is_string($address)) continue;
+                $entry = null;
+                if (filter_var($address, FILTER_VALIDATE_IP)) {
+                    $entry = ['type' => 'udp', 'server' => $address];
+                } elseif (strpos($address, 'https://') === 0) {
+                    $parts = parse_url($address);
+                    if ($parts && !empty($parts['host']) && filter_var($parts['host'], FILTER_VALIDATE_IP)) {
+                        $entry = ['type' => 'https', 'server' => $parts['host'], 'path' => $parts['path'] ?? '/dns-query'];
+                        if (isset($parts['port'])) $entry['server_port'] = $parts['port'];
+                    }
+                }
+                if (!$entry) continue;
+                $index = count($resolverTags);
+                $tag = 'v3board-node-dns-' . $index;
+                while (in_array($tag, $existingTags, true)) $tag .= '-custom';
+                $entry['tag'] = $tag;
                 $this->config['dns']['servers'][] = $entry;
-                if (!isset($this->config['route']) || !is_array($this->config['route'])) $this->config['route'] = [];
-                $this->config['route']['default_domain_resolver'] = ['server' => 'v3board-node-resolver'];
+                $existingTags[] = $tag;
+                $resolverTags[] = $tag;
+            }
+            // sing-box accepts one resolver tag per outbound, not a list of
+            // failover resolvers. Register all valid servers but select the first.
+            if ($resolverTags) {
+                foreach ($proxies as &$proxy) {
+                    if (isset($proxy['server']) && is_string($proxy['server'])
+                        && !filter_var($proxy['server'], FILTER_VALIDATE_IP)) {
+                        $proxy['domain_resolver'] = ['server' => $resolverTags[0]];
+                    }
+                }
+                unset($proxy);
             }
         }
-        $proxies = $this->buildProxies();
         $outbounds = $this->addProxies($proxies);
         $this->config['outbounds'] = $outbounds;
         $user = $this->user;
