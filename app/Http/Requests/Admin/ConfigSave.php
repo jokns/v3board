@@ -61,7 +61,7 @@ class ConfigSave extends FormRequest
         'subscribe_encrypt_ua' => 'nullable|string',
         'subscribe_encrypt_plan_ids' => 'nullable|string',
         'proxy_node_dns_servers' => 'nullable|array|max:10',
-        'proxy_node_dns_servers.*' => ['string', 'max:255', 'regex:/^(?:[0-9a-zA-Z.:\[\]_-]+|https:\/\/[a-zA-Z0-9.:-]+\/[^\s]*)$/'],
+        'proxy_node_dns_servers.*' => ['string', 'max:255', 'regex:~^(?:[0-9a-zA-Z.:\\[\\]_-]+|(?:https|quic|h3)://[a-zA-Z0-9.:-]+(?:/[^\\s]*)?)$~'],
         // server
         'server_api_url' => 'nullable|string',
         'server_token' => 'nullable|min:16',
