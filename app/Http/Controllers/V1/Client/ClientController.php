@@ -103,24 +103,24 @@ class ClientController extends Controller
      * Only rewrite subscription connection addresses; never touch SNI or persisted nodes.
      * Keep the hostname if DNS resolution fails.
      */
+    // Resolve only explicitly enabled nodes. Never rewrite TLS SNI, Host headers or other fields.
     private function subscriptionDnsResolveExceptClient(&$servers)
     {
+        $enabled = config('v2board.subscribe_node_ipv4', []);
+        if (!is_array($enabled)) return;
         $cache = [];
         foreach ($servers as &$server) {
-            if (strpos((string)($server['name'] ?? ''), '客户端') !== false) continue;
-            foreach (['host', 'server', 'address'] as $field) {
-                if (empty($server[$field]) || !is_string($server[$field])) continue;
-                $host = $server[$field];
-                if (filter_var($host, FILTER_VALIDATE_IP)) continue;
-                if (strlen($host) > 253
-                    || !preg_match('/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/iD', $host)
-                    || strpos($host, '.') === false) continue;
-                if (!array_key_exists($host, $cache)) {
-                    $ip = gethostbyname($host);
-                    $cache[$host] = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? $ip : null;
-                }
-                if ($cache[$host] !== null) $server[$field] = $cache[$host];
+            $type = (string)($server['type'] ?? '');
+            $id = (int)($server['id'] ?? 0);
+            if ($id <= 0 || empty($enabled[$type . ':' . $id])) continue;
+            $host = $server['host'] ?? null;
+            if (!is_string($host) || filter_var($host, FILTER_VALIDATE_IP)) continue;
+            if (strlen($host) > 253 || !preg_match('/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/iD', $host) || strpos($host, '.') === false) continue;
+            if (!array_key_exists($host, $cache)) {
+                $ip = gethostbyname($host);
+                $cache[$host] = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? $ip : null;
             }
+            if ($cache[$host] !== null) $server['host'] = $cache[$host];
         }
         unset($server);
     }
