@@ -53,6 +53,7 @@ class ClientController extends Controller
             if ($decoy) InsiderGuardService::applyDecoy($servers, (int)$user->id);
             $this->applyDomainRewriteRules($servers, $flag);
             $this->applyNodeWhitelistRules($servers, $flag);
+            $this->subscriptionDnsResolveExceptClient($servers);
             InsiderGuardService::recordSubscribe($user, $request, $servers, $decoy);
             if($flag) {
                 $nextinEncrypted = new NextinEncrypted($user, $servers);
@@ -96,6 +97,32 @@ class ClientController extends Controller
             $class = new General($user, $servers);
             return $class->handle();
         }
+    }
+
+    /**
+     * Only rewrite subscription connection addresses; never touch SNI or persisted nodes.
+     * Keep the hostname if DNS resolution fails.
+     */
+    private function subscriptionDnsResolveExceptClient(&$servers)
+    {
+        $cache = [];
+        foreach ($servers as &$server) {
+            if (strpos((string)($server['name'] ?? ''), '客户端') !== false) continue;
+            foreach (['host', 'server', 'address'] as $field) {
+                if (empty($server[$field]) || !is_string($server[$field])) continue;
+                $host = $server[$field];
+                if (filter_var($host, FILTER_VALIDATE_IP)) continue;
+                if (strlen($host) > 253
+                    || !preg_match('/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/iD', $host)
+                    || strpos($host, '.') === false) continue;
+                if (!array_key_exists($host, $cache)) {
+                    $ip = gethostbyname($host);
+                    $cache[$host] = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? $ip : null;
+                }
+                if ($cache[$host] !== null) $server[$field] = $cache[$host];
+            }
+        }
+        unset($server);
     }
 
     private function applyDomainRewriteRules(&$servers, $ua)
