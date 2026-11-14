@@ -45,6 +45,14 @@ class V2nodeController extends Controller
             'show' => 'nullable|in:0,1',
             'sort' => 'nullable'
         ]);
+        // Load the existing node before handling TLS credentials, so an edit can reuse them.
+        $server = null;
+        if ($request->input('id')) {
+            $server = ServerV2node::find($request->input('id'));
+            if (!$server) {
+                abort(500, '服务器不存在');
+            }
+        }
         if ($params['protocol'] == 'anytls' && $params['tls'] === 0) {
             $params['tls'] = 1;
         }
@@ -83,8 +91,42 @@ class V2nodeController extends Controller
                 }
             }
         }
-        if (isset($params['tls']) && !empty($params['tls_settings']['cert_mode']) && $params['tls_settings']['cert_mode'] === 'remote') {
-            if (!isset($params['tls_settings']['pinned_peer_cert_sha256'])) {
+        if ((int)$params['tls'] === 1 && ($params['tls_settings']['cert_mode'] ?? null) === 'remote') {
+            // The admin UI may omit private keys. Prefer the saved certificate/key pair
+            // rather than generating a new identity on every edit.
+            $savedTlsSettings = $server ? $server->tls_settings : null;
+            if (!is_array($savedTlsSettings)) {
+                $savedTlsSettings = [];
+            }
+            if (empty($params['tls_settings']['tls_cert']) || empty($params['tls_settings']['tls_key'])) {
+                if (!empty($savedTlsSettings['tls_cert']) && !empty($savedTlsSettings['tls_key'])) {
+                    $params['tls_settings']['tls_cert'] = $savedTlsSettings['tls_cert'];
+                    $params['tls_settings']['tls_key'] = $savedTlsSettings['tls_key'];
+                } else {
+                    // An incomplete submitted pair must not silently replace an identity.
+                    unset($params['tls_settings']['tls_cert'], $params['tls_settings']['tls_key']);
+                }
+            }
+            if (!empty($params['tls_settings']['tls_cert']) && !empty($params['tls_settings']['tls_key'])) {
+                $certPem = $params['tls_settings']['tls_cert'];
+                $keyPem = $params['tls_settings']['tls_key'];
+                $certHandle = openssl_x509_read($certPem);
+                $keyHandle = openssl_pkey_get_private($keyPem);
+                if ($certHandle === false || $keyHandle === false
+                    || !openssl_x509_check_private_key($certHandle, $keyHandle)) {
+                    abort(422, 'TLS 证书与私钥无效或不匹配');
+                }
+                $certDer = base64_decode(
+                    preg_replace('/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\\s+/', '', $certPem),
+                    true
+                );
+                if ($certDer === false) {
+                    abort(422, 'TLS 证书格式无效');
+                }
+                // Always derive the pin from the actual certificate, never trust a stale UI value.
+                $params['tls_settings']['pinned_peer_cert_sha256'] = hash('sha256', $certDer);
+            } else {
+                $sni = $params['tls_settings']['server_name'] ?? 'example.com';
                 $sni = $params['tls_settings']['server_name'] ?? 'example.com';
                 $key = openssl_pkey_new([
                     "private_key_type" => OPENSSL_KEYTYPE_EC,
@@ -254,10 +296,6 @@ class V2nodeController extends Controller
         }
 
         if ($request->input('id')) {
-            $server = ServerV2node::find($request->input('id'));
-            if (!$server) {
-                abort(500, '服务器不存在');
-            }
             try {
                 $server->update($params);
             } catch (\Exception $e) {
