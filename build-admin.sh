@@ -1,6 +1,6 @@
 #!/bin/bash
 # 构建后台前端并放进 public/assets/admin。
-# 后台前端源码在 https://github.com/codeman857/v2board-admin（React），本仓库只保存构建产物，
+# 后台前端源码在 https://github.com/jokns/v2board-admin（React），本仓库只保存构建产物，
 # 用户 update.sh 拉取后直接可用，服务器上不需要 Node。
 #
 # 用法：./build-admin.sh [v2board-admin 源码目录]   默认 ../v2board-admin
