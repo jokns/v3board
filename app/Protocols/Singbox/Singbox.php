@@ -23,6 +23,24 @@ class Singbox
     {
         $appName = config('v2board.app_name', 'V2Board');
         $this->config = $this->loadConfig();
+        // sing-box 1.12+: outbound hostname resolver. The first configured server
+        // is used as primary; other entries are not falsely advertised as fallbacks.
+        $dns = config('v2board.proxy_node_dns_servers', []);
+        if (is_array($dns) && $dns) {
+            $address = (string)reset($dns);
+            $entry = null;
+            if (filter_var($address, FILTER_VALIDATE_IP)) {
+                $entry = ['type' => 'udp', 'tag' => 'v3board-node-resolver', 'server' => $address];
+            } elseif (strpos($address, 'https://') === 0) {
+                $entry = ['type' => 'https', 'tag' => 'v3board-node-resolver', 'server' => $address];
+            }
+            if ($entry && is_array($this->config)) {
+                if (!isset($this->config['dns']['servers']) || !is_array($this->config['dns']['servers'])) $this->config['dns']['servers'] = [];
+                $this->config['dns']['servers'][] = $entry;
+                if (!isset($this->config['route']) || !is_array($this->config['route'])) $this->config['route'] = [];
+                $this->config['route']['default_domain_resolver'] = ['server' => 'v3board-node-resolver'];
+            }
+        }
         $proxies = $this->buildProxies();
         $outbounds = $this->addProxies($proxies);
         $this->config['outbounds'] = $outbounds;
