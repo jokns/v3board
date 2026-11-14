@@ -231,7 +231,7 @@ class ConfigController extends Controller
         if ($data['enabled']) $settings[$key] = true;
         else unset($settings[$key]);
         $config['subscribe_node_ipv4'] = $settings;
-        if (!File::put(base_path('config/v2board.php'), "<?php\\n return " . var_export($config, true) . ";")) abort(500, '保存失败');
+        if (!File::put(base_path('config/v2board.php'), "<?php\n return " . var_export($config, true) . ";")) abort(500, '保存失败');
         if (function_exists('opcache_reset')) opcache_reset();
         Artisan::call('config:cache');
         return response(['data' => true]);
