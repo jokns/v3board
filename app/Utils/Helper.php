@@ -223,14 +223,12 @@ class Helper
     }
 
     /**
-     * 本次新增下发（mihomo fingerprint、sing-box 公钥固定、hy2 pinSHA256、anytls hpkp）用的 pin：节点开了「允许不安全」时不下发。
+     * 本次新增下发（mihomo fingerprint、sing-box 公钥固定、hy2 pinSHA256、anytls hpkp）用的 pin：即使节点允许不安全连接，也继续下发可用的证书指纹。
      * v2node 后端在 remote 模式下若节点上已有旧证书文件就不会覆盖，证书可能和面板的 pin 对不上；这些客户端里 pin 会压过
-     * 跳过校验，原来靠允许不安全能连的用户下发 pin 后反而会断。URI 的 pcs 保持上游行为，仍用 pinnedCertSha256
+     * 跳过校验；证书与 pin 不一致时客户端仍可能连接失败。URI 的 pcs 保持上游行为，仍用 pinnedCertSha256
      */
     public static function clientPinSha256(array $server): string
     {
-        $allowInsecure = $server['tls_settings']['allow_insecure'] ?? 0;
-        if (is_scalar($allowInsecure) && (int)$allowInsecure === 1) return '';
         return self::pinnedCertSha256($server);
     }
 

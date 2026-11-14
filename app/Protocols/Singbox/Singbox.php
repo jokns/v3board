@@ -157,7 +157,7 @@ class Singbox
         $array['server_port'] = $server['port'];
         $array['uuid'] = $uuid;
         $array['security'] = 'auto';
-        $array['alter_id'] = 0;
+        $array['alter_id'] = 1;
         $array['transport']= [];
         $array['domain_resolver'] = 'local';
 

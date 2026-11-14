@@ -93,7 +93,7 @@ class Loon
             "{$uuid}",
             'fast-open=false',
             'udp=true',
-            "alterId=0"
+            "alterId=1"
         ];
 
         if ($server['network'] === 'tcp') {
@@ -143,7 +143,7 @@ class Loon
             "{$uuid}",
             'fast-open=false',
             'udp=true',
-            "alterId=0"
+            "alterId=1"
         ];
 
         if ($server['network'] === 'tcp') {

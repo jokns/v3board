@@ -44,7 +44,7 @@ class Shadowrocket
         $config = [
             'tfo' => 1,
             'remark' => $server['name'],
-            'alterId' => 0
+            'alterId' => 1
         ];
         if ($server['tls']) {
             $config['tls'] = 1;

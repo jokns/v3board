@@ -1,0 +1,55 @@
+name: Subscription compatibility checks
+
+on:
+  pull_request:
+    paths:
+      - 'app/Http/Controllers/V1/Client/ClientController.php'
+      - 'app/Utils/Helper.php'
+      - 'app/Protocols/**'
+      - '.github/workflows/subscription-compat-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint-and-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP syntax check
+        run: |
+          set -euo pipefail
+          for f in app/Http/Controllers/V1/Client/ClientController.php app/Utils/Helper.php app/Protocols/{Clash,ClashMeta,ClashVerge,ClashNyanpasu,Stash,Shadowrocket,Loon}.php app/Protocols/Singbox/{Singbox,SingboxOld}.php; do
+            php -l "$f"
+          done
+      - name: Source compatibility contracts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          c = Path('app/Http/Controllers/V1/Client/ClientController.php').read_text()
+          h = Path('app/Utils/Helper.php').read_text()
+          assert c.count('private function subscriptionDnsResolveExceptClient(') == 1
+          assert c.count('$this->subscriptionDnsResolveExceptClient($servers);') == 1
+          assert c.index('applyNodeWhitelistRules($servers, $flag);') < c.index('$this->subscriptionDnsResolveExceptClient($servers);') < c.index('InsiderGuardService::recordSubscribe(')
+          assert "'客户端'" in c
+          assert 'gethostbyname($host)' in c
+          assert "FILTER_FLAG_IPV4" in c
+          pin = h.split('public static function clientPinSha256(array $server): string',1)[1].split('public static function utlsFingerprint',1)[0]
+          assert 'return self::pinnedCertSha256($server);' in pin
+          assert 'if (is_scalar($allowInsecure)' not in pin
+          files = {
+            'Clash.php': "['alterId'] = 1;",
+            'ClashMeta.php': "['alterId'] = 1;",
+            'ClashVerge.php': "['alterId'] = 1;",
+            'ClashNyanpasu.php': "['alterId'] = 1;",
+            'Stash.php': "['alterId'] = 1;",
+            'Shadowrocket.php': "'alterId' => 1",
+            'Loon.php': 'alterId=1',
+            'Singbox/Singbox.php': "['alter_id'] = 1;",
+            'Singbox/SingboxOld.php': "['alter_id'] = 1;",
+          }
+          for file, fragment in files.items():
+              assert fragment in Path('app/Protocols',file).read_text(), file
+          print('Source contracts passed; integration/client connectivity tests still required.')
+          PY
