@@ -18,6 +18,8 @@ class AdminRoute
             $router->get ('/config/getThemeTemplate', 'V1\\Admin\\ConfigController@getThemeTemplate');
             $router->post('/config/setTelegramWebhook', 'V1\\Admin\\ConfigController@setTelegramWebhook');
             $router->post('/config/testSendMail', 'V1\\Admin\\ConfigController@testSendMail');
+            $router->get ('/config/fetchNodeIpv4Settings', 'V1\\Admin\\ConfigController@fetchNodeIpv4Settings');
+            $router->post('/config/saveNodeIpv4Settings', 'V1\\Admin\\ConfigController@saveNodeIpv4Settings');
             $router->get ('/config/fetchDomainRewriteRules', 'V1\\Admin\\ConfigController@fetchDomainRewriteRules');
             $router->post('/config/saveDomainRewriteRules', 'V1\\Admin\\ConfigController@saveDomainRewriteRules');
             $router->get ('/config/fetchSubscribeNodeWhitelistRules', 'V1\\Admin\\ConfigController@fetchSubscribeNodeWhitelistRules');
