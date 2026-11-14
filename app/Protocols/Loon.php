@@ -54,7 +54,7 @@ class Loon
             }
             $lines = [];
             foreach ($groups as $key => $values) if ($values) $lines[] = $key . ' = ' . implode(',', $values);
-            if ($lines) $uri = "[DNS]\\n" . implode("\\n", $lines) . "\\n[Proxy]\\n" . $uri;
+            if ($lines) $uri = "[DNS]\n" . implode("\n", $lines) . "\n[Proxy]\n" . $uri;
         }
         return $uri;
     }
