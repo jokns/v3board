@@ -33,6 +33,12 @@ class Clash
         } else {
             $config = Yaml::parseFile($defaultConfig);
         }
+        // Only override the resolver used for proxy node hostnames when configured.
+        $nodeDns = config('v2board.proxy_node_dns_servers', []);
+        if (is_array($nodeDns) && count($nodeDns) > 0) {
+            if (!isset($config['dns']) || !is_array($config['dns'])) $config['dns'] = [];
+            $config['dns']['proxy-server-nameserver'] = array_values($nodeDns);
+        }
         $proxy = [];
         $proxies = [];
 
