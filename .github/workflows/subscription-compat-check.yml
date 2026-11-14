@@ -32,7 +32,9 @@ jobs:
           assert c.count('private function subscriptionDnsResolveExceptClient(') == 1
           assert c.count('$this->subscriptionDnsResolveExceptClient($servers);') == 1
           assert c.index('applyNodeWhitelistRules($servers, $flag);') < c.index('$this->subscriptionDnsResolveExceptClient($servers);') < c.index('InsiderGuardService::recordSubscribe(')
-          assert "'客户端'" in c
+          assert "config('v2board.subscribe_node_ipv4', [])" in c
+          assert "empty($enabled[$type . ':' . $id])" in c
+          assert "strpos((string)($server['name']" not in c
           assert 'gethostbyname($host)' in c
           assert "FILTER_FLAG_IPV4" in c
           pin = h.split('public static function clientPinSha256(array $server): string',1)[1].split('public static function utlsFingerprint',1)[0]
