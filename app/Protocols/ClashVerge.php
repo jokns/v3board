@@ -170,7 +170,7 @@ class ClashVerge
         $array['server'] = $server['host'];
         $array['port'] = $server['port'];
         $array['uuid'] = $uuid;
-        $array['alterId'] = 0;
+        $array['alterId'] = 1;
         $array['cipher'] = 'auto';
         $array['udp'] = true;
 
